@@ -149,6 +149,7 @@ class Exit(Gtk.Dialog):
     def __init__(self, parent):
         Gtk.Dialog.__init__(self, "Stop -> Exit?", parent, 0,
             (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            "Hide", Gtk.ResponseType.CLOSE,
              Gtk.STOCK_OK, Gtk.ResponseType.OK))
 
         self.set_default_size(150, 60)
@@ -306,6 +307,10 @@ class Main(Gtk.Window):
                 self.destroy(widget)
                 return False
             elif response == Gtk.ResponseType.CANCEL:
+                return True
+            elif response == Gtk.ResponseType.CLOSE:
+                # self.hide() #run on background
+                self.iconify() #minimize
                 return True
         else:
             self.destroy(widget, data)
