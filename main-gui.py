@@ -10,6 +10,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
 import threading
 # import signal
 import sys
@@ -69,6 +70,20 @@ class Utility():
         body += "\nat "+str(self.convert_date(datetime.now()+timedelta(seconds=delay)))
         app_notification = Notify.Notification.new(summary, str(body), 'alarm-symbolic')
         app_notification.show()
+
+
+class StatusIcon():
+    def open_app(self, data=None):
+        Gtk.main_quit()
+        hello.main()
+
+    def close_app(self, data=None):
+        hello.destroy()
+
+    def on_left_click(self, event):
+        hello.icon.set_visible(False)
+        self.open_app()
+
 
 class Mesin:
     def __init__(self):
@@ -179,12 +194,18 @@ class Main(Gtk.Window):
         self.jeda = 1200
         self.msn = Mesin()
         self.util = Utility()
+        self.tray = StatusIcon()
+
+        self.icon = Gtk.StatusIcon()
+        self.icon.set_visible(False)
+        self.icon.set_from_stock(Gtk.STOCK_EXECUTE)
+        self.icon.connect('activate', self.tray.on_left_click)
 
         # create a new window
         Gtk.Window.__init__(self, title="Work Controller")
         # self.window = Gtk.Window()
         self.set_default_size(75, 150)
-        self.set_size_request(75, 100)
+        self.set_size_request(75, 150)
         self.set_border_width(10)
         self.set_resizable(False)
         self.connect("delete_event", self.delete_event)
@@ -274,29 +295,19 @@ class Main(Gtk.Window):
 
     def set_entry(self):
         if self.msn.is_running:
-            self.entry.set_property("editable", False)
-            self.entry.hide()
             self.set_label()
         else:
-            self.entry.set_property("editable", True)
-            self.entry.set_text(str(self.jeda))
-            self.entry.select_region(0, len(self.entry.get_text()))
-            self.entry.grab_focus()
-            self.entry.show()
             self.set_label()
 
     def set_label(self):
         thread = threading.Timer(1, self.set_label)
         if self.msn.is_running:
             self.jeda = self.jeda - 1
+            self.show_running()
             thread.start()
-            label = self.util.diff_time(datetime.now(), datetime.now()+timedelta(seconds=self.jeda+1))
-            self.label.set_label(str(label))
-            self.label.set_width_chars(38)
         else:
             thread.cancel()
-            self.label.set_width_chars(10)
-            self.label.set_label(' seconds')
+            self.show_stopped()
 
     def delete_event(self, widget, event, data=None):
         if self.msn.is_running:
@@ -309,8 +320,9 @@ class Main(Gtk.Window):
             elif response == Gtk.ResponseType.CANCEL:
                 return True
             elif response == Gtk.ResponseType.CLOSE:
-                # self.hide() #run on background
-                self.iconify() #minimize
+                self.hide() #run on background
+                if not self.icon.get_visible():
+                    self.icon.set_visible(True)
                 return True
         else:
             self.destroy(widget, data)
@@ -319,9 +331,34 @@ class Main(Gtk.Window):
     def destroy(self, widget, data=None):
         self.msn.stop()
         Gtk.main_quit()
+        Gtk.main_quit()
+
+    def show_running(self):
+        self.entry.set_property("editable", False)
+        self.entry.hide()
+        label = self.util.diff_time(datetime.now(), datetime.now()+timedelta(seconds=self.jeda+1))
+        self.label.set_label(str(label))
+        self.label.set_width_chars(38)
+        self.radio_sleep.set_sensitive(False)
+        self.radio_lock.set_sensitive(False)
+
+    def show_stopped(self):
+        self.entry.set_property("editable", True)
+        self.entry.set_text(str(self.jeda))
+        self.entry.select_region(0, len(self.entry.get_text()))
+        self.entry.grab_focus()
+        self.entry.show()
+        self.label.set_width_chars(10)
+        self.label.set_label(' seconds')
+        self.radio_sleep.set_sensitive(True)
+        self.radio_lock.set_sensitive(True)
 
     def main(self):
         self.show_all()
+        if self.msn.is_running:
+            self.show_running()
+        else:
+            self.show_stopped()
         Gtk.main()
 
 # If the program is run directly or passed as an argument to the python
