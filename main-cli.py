@@ -54,12 +54,14 @@ class Utility():
         return isodate.strftime("%A, %d %B %Y %H:%M:%S")
 
     def notif_stop(self):
+        Notify.init("Work Controller")
         summary = "Work Control Stopped :("
         body = "Computer will not auto screen lock"
         app_notification = Notify.Notification.new(summary, str(body), 'appointment-missed-symbolic')
         app_notification.show()
 
     def notif_start(self):
+        Notify.init("Work Controller")
         summary = "Work Control Starting..."
         # body = "Computer will sleep at "+str(self.convert_date(datetime.now()+timedelta(seconds=delay)))
         body = "Computer sleep in\n"+self.diff_time(datetime.now(), datetime.now()+timedelta(seconds=delay))
@@ -68,8 +70,11 @@ class Utility():
         app_notification.show()
 
 class Mesin:
+    delay = 1200
+    remain = delay
     def __init__(self):
         self.delay = 1200
+        self.remain = self.delay
         self.action = "Lock"
         global delay
         delay = self.delay
@@ -93,6 +98,7 @@ class Mesin:
             print bcolors.OKGREEN+"["+str(datetime.now())+"]"+bcolors.ENDC, bcolors.FAIL+"Work Controller Stopped :("+bcolors.ENDC
 
     def start(self):
+        print 'start'
         if not self.is_running:
             self.util.notif_start()
             print bcolors.OKGREEN+"["+str(datetime.now())+"]"+bcolors.ENDC, bcolors.WARNING+self.action+" after", delay, "seconds"+bcolors.ENDC
@@ -119,38 +125,42 @@ class Mesin:
         bus.add_match_string("type='signal',interface='org.gnome.ScreenSaver'")
         bus.add_message_filter(self.filter_cb)
         gobject.idle_add(self.start, priority=999)
-        self.mainloop.run()
+        print self.remain
+        self.remain -= 1
+        thread = threading.Timer(1, self.listen_lockscreen)
+        thread.start
+        # self.mainloop.quit()
+        # self.mainloop.run()
 
     def main(self):
-        if len(sys.argv) >= 1:
-            try:
-                Notify.init("Work Controller")
-                global delay
-                if sys.argv[1].isdigit():
-                    delay = int(sys.argv[1])
-                    if sys.argv[2] == "--sleep":
-                        self.action = "Sleep"
-                    elif sys.argv[2] == "--lock":
-                        self.action = "Lock"
-                elif sys.argv[2].isdigit():
-                    delay = int(sys.argv[2])
-                    if sys.argv[1] == "--sleep":
-                        self.action = "Sleep"
-                    elif sys.argv[1] == "--lock":
-                        self.action = "Lock"
-
-                signal.signal(signal.SIGINT, signal.SIG_DFL)
-                self.listen_lockscreen()
-            except Exception as e:
-                print "Usage :"
-                print "       python main-cli.py <seconds> [--sleep|--lock]"
-                sys.exit()
-            finally:
-                sys.exit()
+        self.listen_lockscreen()
 
 
 # Standard boilerplate to call the main() function to begin
 # the program.
 if __name__ == '__main__':
-    main = Mesin()
-    main.main()
+    if len(sys.argv) >= 1:
+        try:
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+            main = Mesin()
+            main.main()
+            global delay
+            if sys.argv[1].isdigit():
+                delay = int(sys.argv[1])
+                if sys.argv[2] == "--sleep":
+                    main.action = "Sleep"
+                elif sys.argv[2] == "--lock":
+                    main.action = "Lock"
+            elif sys.argv[2].isdigit():
+                delay = int(sys.argv[2])
+                if sys.argv[1] == "--sleep":
+                    main.action = "Sleep"
+                elif sys.argv[1] == "--lock":
+                    main.action = "Lock"
+            # self.listen_lockscreen()
+        except Exception as e:
+            print "Usage :"
+            print "       python "+sys.argv[0]+" <seconds> [--sleep|--lock]"
+            sys.exit()
+        finally:
+            sys.exit()
